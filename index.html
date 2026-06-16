@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faction War Intel</title>
+<style>
+  :root{
+    --bg-void:#0a0d12;
+    --bg-panel:#11151c;
+    --bg-raised:#161b24;
+    --line:#232b38;
+    --line-bright:#34404f;
+    --ink-bright:#eef2f7;
+    --ink-mid:#9aa7b8;
+    --ink-dim:#5c6878;
+    --signal-amber:#ffb238;
+    --signal-red:#ff5454;
+    --signal-green:#39d98a;
+    --grid-cold:#0d1117;
+    --grid-hot1:#0e3a52;
+    --grid-hot2:#0d6788;
+    --grid-hot3:#0fa3a3;
+    --grid-hot4:#5fd068;
+    --grid-hot5:#f4f73c;
+    --mono: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+    --sans: 'Inter', -apple-system, sans-serif;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg-void);
+    color:var(--ink-bright);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+    padding:0 0 80px 0;
+  }
+
+  /* ===== TOP BAR ===== */
+  .topbar{
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, var(--bg-panel) 0%, var(--bg-void) 100%);
+    padding:28px 32px 24px;
+    position:relative;
+    overflow:hidden;
+  }
+  .topbar::before{
+    content:"";
+    position:absolute; top:0; right:0; bottom:0; width:40%;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 23px, var(--line) 23px 24px);
+    opacity:0.35;
+    pointer-events:none;
+    mask-image:linear-gradient(90deg, transparent, black 60%);
+  }
+  .topbar-inner{display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px; position:relative;}
+  .eyebrow{
+    font-family:var(--mono); font-size:11px; letter-spacing:0.18em; text-transform:uppercase;
+    color:var(--signal-amber); margin-bottom:8px; display:flex; align-items:center; gap:8px;
+  }
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--signal-amber); box-shadow:0 0 8px var(--signal-amber); animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+  h1{font-family:var(--mono); font-size:30px; font-weight:700; letter-spacing:-0.01em; color:var(--ink-bright);}
+  .meta-block{font-family:var(--mono); font-size:12px; color:var(--ink-dim); text-align:right; line-height:1.6;}
+  .meta-block b{color:var(--ink-mid); font-weight:600;}
+
+  .container{max-width:1280px; margin:0 auto; padding:0 32px;}
+
+  /* ===== SECTION HEADERS ===== */
+  .section{margin-top:56px;}
+  .section-head{display:flex; align-items:baseline; gap:14px; margin-bottom:18px;}
+  .section-num{font-family:var(--mono); font-size:12px; color:var(--signal-amber); letter-spacing:0.1em;}
+  .section-title{font-family:var(--mono); font-size:18px; font-weight:700; color:var(--ink-bright);}
+  .section-sub{font-size:13px; color:var(--ink-dim); margin-left:auto; max-width:420px; text-align:right;}
+
+  /* ===== SUMMARY STRIP ===== */
+  .strip{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line); border:1px solid var(--line); margin-top:32px;}
+  .strip-cell{background:var(--bg-panel); padding:18px 20px;}
+  .strip-label{font-family:var(--mono); font-size:10.5px; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-dim); margin-bottom:8px;}
+  .strip-value{font-family:var(--mono); font-size:22px; font-weight:700; color:var(--ink-bright);}
+  .strip-value span{font-size:13px; color:var(--ink-mid); font-weight:500;}
+
+  /* ===== CONTROLS ===== */
+  .controls{display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center;}
+  .search{
+    background:var(--bg-raised); border:1px solid var(--line); color:var(--ink-bright);
+    font-family:var(--mono); font-size:13px; padding:9px 14px; border-radius:4px;
+    width:220px; outline:none; transition:border-color 0.15s;
+  }
+  .search:focus{border-color:var(--signal-amber);}
+  .search::placeholder{color:var(--ink-dim);}
+  .spacer{flex:1;}
+  .legend-mini{font-family:var(--mono); font-size:11px; color:var(--ink-dim); display:flex; align-items:center; gap:6px;}
+
+  /* ===== TABLE ===== */
+  .table-wrap{border:1px solid var(--line); border-radius:6px; overflow:hidden; background:var(--bg-panel);}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  thead th{
+    background:var(--bg-raised); text-align:left; padding:12px 14px;
+    font-family:var(--mono); font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--ink-dim); border-bottom:1px solid var(--line); cursor:pointer; user-select:none;
+    white-space:nowrap; position:relative;
+  }
+  thead th:hover{color:var(--ink-bright);}
+  thead th.sorted{color:var(--signal-amber);}
+  thead th .arrow{font-size:9px; margin-left:4px; opacity:0.7;}
+  tbody tr{border-bottom:1px solid var(--line); transition:background 0.1s;}
+  tbody tr:hover{background:var(--bg-raised);}
+  tbody tr:last-child{border-bottom:none;}
+  td{padding:11px 14px; vertical-align:middle;}
+  .td-name{font-family:var(--mono); font-weight:700; font-size:13.5px; color:var(--ink-bright);}
+  .td-id{font-family:var(--mono); font-size:11px; color:var(--ink-dim); margin-left:6px;}
+  .td-stats{font-family:var(--mono); font-weight:600;}
+  .window-tag{font-family:var(--mono); font-size:12px; color:var(--signal-green);}
+  .activity-bar-cell{width:140px;}
+  .mini-bar{display:flex; align-items:center; gap:1px; height:20px;}
+  .mini-seg{flex:1; height:100%; border-radius:1px; border:1px solid rgba(255,255,255,0.04);}
+  .risk-flag{font-family:var(--mono); font-size:11px; color:var(--signal-red); font-weight:700;}
+
+  /* ===== HEATMAP ===== */
+  .heatmap-panel{border:1px solid var(--line); border-radius:6px; background:var(--bg-panel); padding:24px; overflow-x:auto;}
+  .hm-grid{display:grid; grid-template-columns:120px repeat(24, 1fr); gap:2px; min-width:920px;}
+  .hm-hour-label{font-family:var(--mono); font-size:10px; color:var(--ink-dim); text-align:center; padding-bottom:6px;}
+  .hm-row-label{font-family:var(--mono); font-size:12px; font-weight:700; color:var(--ink-mid); display:flex; align-items:center; padding-right:10px; white-space:nowrap;}
+  .hm-cell{
+    aspect-ratio:1; border-radius:2px; position:relative; cursor:pointer;
+    transition:transform 0.1s; border:1px solid rgba(255,255,255,0.04);
+  }
+  .hm-cell:hover{transform:scale(1.25); z-index:5; box-shadow:0 0 0 1px var(--ink-bright);}
+  .hm-row-label.summary{color:var(--signal-green); font-weight:700;}
+  .hm-divider{grid-column:1/-1; height:1px; background:var(--line); margin:6px 0;}
+
+  .hm-tooltip{
+    position:fixed; background:var(--bg-raised); border:1px solid var(--line-bright);
+    border-radius:4px; padding:8px 11px; font-family:var(--mono); font-size:11.5px;
+    color:var(--ink-bright); pointer-events:none; z-index:100; display:none;
+    box-shadow:0 8px 24px rgba(0,0,0,0.5); white-space:nowrap;
+  }
+  .hm-tooltip .t-name{color:var(--signal-amber); font-weight:700;}
+
+  .hm-legend{display:flex; align-items:center; gap:8px; margin-top:18px; font-family:var(--mono); font-size:11px; color:var(--ink-dim);}
+  .hm-legend-scale{display:flex; gap:2px;}
+  .hm-legend-scale div{width:18px; height:14px; border-radius:2px;}
+
+  /* ===== RECOMMENDED WINDOWS ===== */
+  .windows-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:14px;}
+  .window-card{
+    border:1px solid var(--line); border-radius:6px; background:var(--bg-panel); padding:18px 20px;
+    position:relative; overflow:hidden;
+  }
+  .window-card::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--signal-green);}
+  .window-card.caution::before{background:var(--signal-amber);}
+  .window-time{font-family:var(--mono); font-size:20px; font-weight:700; color:var(--ink-bright); margin-bottom:6px;}
+  .window-desc{font-size:12.5px; color:var(--ink-mid); line-height:1.5;}
+  .window-targets{margin-top:10px; font-family:var(--mono); font-size:11px; color:var(--signal-green);}
+
+  /* ===== FOOTER ===== */
+  .footer{margin-top:64px; padding-top:20px; border-top:1px solid var(--line); display:flex; justify-content:space-between; font-family:var(--mono); font-size:11px; color:var(--ink-dim);}
+
+  @media (max-width:900px){
+    .strip{grid-template-columns:repeat(2,1fr);}
+    .windows-grid{grid-template-columns:1fr;}
+    table{font-size:12px;}
+    .section-sub{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div>
+      <div class="eyebrow"><span class="dot"></span>FIX FEED · LIVE ROSTER</div>
+      <h1>FACTION WAR INTEL</h1>
+    </div>
+    <div class="meta-block">
+      WINDOW <b>2026-06-10 → 2026-06-16</b><br>
+      TIMEZONE <b>TCT</b> · TARGETS <b>15</b><br>
+      COMPILED <b>2026-06-16 13:33 TCT</b>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="strip">
+    <div class="strip-cell">
+      <div class="strip-label">Total Roster</div>
+      <div class="strip-value">15 <span>targets tracked</span></div>
+    </div>
+    <div class="strip-cell">
+      <div class="strip-label">Stat Range</div>
+      <div class="strip-value">14.9b <span>→</span> 3.19q</div>
+    </div>
+    <div class="strip-cell">
+      <div class="strip-label">Top Stat Targets (&gt;1t)</div>
+      <div class="strip-value">3 <span>DrGonzo · Asgar · realistassassin</span></div>
+    </div>
+    <div class="strip-cell">
+      <div class="strip-label">Best Global Window</div>
+      <div class="strip-value">00–03 <span>TCT, lowest aggregate activity</span></div>
+    </div>
+  </div>
+
+  <!-- ===== ROSTER TABLE ===== -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-num">01</div>
+      <div class="section-title">TARGET ROSTER</div>
+      <div class="section-sub">Sort by stats or activity to plan assignments. Click any column header.</div>
+    </div>
+
+    <div class="controls">
+      <input class="search" id="searchInput" placeholder="search target..." type="text">
+      <div class="spacer"></div>
+      <div class="legend-mini">ACTIVITY BAR = HOURLY LOAD, 00→23 TCT</div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="rosterTable">
+        <thead>
+          <tr>
+            <th data-key="name">Target <span class="arrow"></span></th>
+            <th data-key="stats">Stats <span class="arrow"></span></th>
+            <th data-key="minsSort">Mins/Day Active <span class="arrow"></span></th>
+            <th>Hourly Pattern (00–23)</th>
+            <th data-key="bestWin">Best Attack Window <span class="arrow"></span></th>
+          </tr>
+        </thead>
+        <tbody id="rosterBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== HEATMAP ===== -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-num">02</div>
+      <div class="section-title">ACTIVITY HEATMAP</div>
+      <div class="section-sub">Darker = quieter. Fixed order: highest stats first. Bottom row aggregates all 15.</div>
+    </div>
+
+    <div class="heatmap-panel">
+      <div class="hm-grid" id="heatmapGrid"></div>
+      <div class="hm-legend">
+        <span>QUIET</span>
+        <div class="hm-legend-scale">
+          <div style="background:var(--grid-cold)"></div>
+          <div style="background:var(--grid-hot1)"></div>
+          <div style="background:var(--grid-hot2)"></div>
+          <div style="background:var(--grid-hot3)"></div>
+          <div style="background:var(--grid-hot4)"></div>
+          <div style="background:var(--grid-hot5)"></div>
+        </div>
+        <span>ACTIVE</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== RECOMMENDED WINDOWS ===== -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-num">03</div>
+      <div class="section-title">RECOMMENDED STRIKE WINDOWS</div>
+      <div class="section-sub">Based on overlapping low-activity periods across the roster.</div>
+    </div>
+
+    <div class="windows-grid">
+      <div class="window-card">
+        <div class="window-time">00:00 – 03:00 TCT</div>
+        <div class="window-desc">Lowest aggregate activity block. Most of the roster is dark, including Bullzeye, Hydr0, and CaptBritain's only real gap.</div>
+        <div class="window-targets">▸ 9 of 14 targets quiet</div>
+      </div>
+      <div class="window-card">
+        <div class="window-time">09:00 – 12:00 TCT</div>
+        <div class="window-desc">Strong window against the extreme tier — both Asgar and realistassassin show consistent gaps here.</div>
+        <div class="window-targets">▸ Best vs. Asgar, realistassassin</div>
+      </div>
+      <div class="window-card caution">
+        <div class="window-time">13:00 – 15:00 TCT</div>
+        <div class="window-desc">Secondary global dip, but Bullzeye and diggers spike here — screen those two before committing hits in this slot.</div>
+        <div class="window-targets">▸ Good vs. nas, DrGonzo, Todd</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>SOURCE: FFSCOUTER.COM / GLASNOST [1844049]</span>
+    <span>INTERNAL USE ONLY — DO NOT SHARE OUTSIDE FACTION</span>
+  </div>
+
+</div>
+
+<div class="hm-tooltip" id="tooltip"></div>
+
+<script>
+/* ===================== DATA ===================== */
+// Hourly activity intensity 0-5 derived from the 5-min breakdown charts (00-23 TCT)
+// Values approximate relative density of activity within each hour across the 7-day window.
+const roster = [
+  { name:"Nasty", id:1822922, stats:14.9e9, minsPerDay:31.3, hours:[2,3,1,1,0,0,0,0,1,2,2,1,2,3,1,0,0,0,0,0,0,0,0,1] },
+  { name:"nas", id:573498, stats:17.5e9, minsPerDay:96.42, hours:[2,1,3,3,1,0,0,1,2,1,1,1,1,2,2,1,2,2,3,3,2,3,2,1] },
+  { name:"Knytet", id:2060828, stats:26.4e9, minsPerDay:80.3, hours:[0,1,2,1,1,2,3,3,3,3,3,3,2,2,3,2,2,3,2,2,2,2,1,0] },
+  { name:"Karalynn", id:517092, stats:25.2e9, minsPerDay:89.50, hours:[3,3,3,2,0,0,0,0,0,0,1,2,2,2,1,1,2,3,3,3,3,3,2,2] },
+  { name:"diggers", id:1850170, stats:26.5e9, minsPerDay:75.5, hours:[2,2,2,2,1,2,2,2,2,2,2,1,1,0,0,0,0,0,1,3,3,1,1,1] },
+  { name:"Sophie", id:992219, stats:33.3e9, minsPerDay:93.87, hours:[3,3,3,2,2,0,0,0,0,1,1,1,1,2,2,2,1,1,1,1,1,1,1,2] },
+  { name:"Aeroroot", id:390615, stats:111e9, minsPerDay:28.12, hours:[2,2,2,1,0,0,0,0,1,1,1,2,2,1,2,2,2,2,2,2,2,2,1,1] },
+  { name:"Hydr0", id:304168, stats:41.8e9, minsPerDay:63.50, hours:[0,0,0,0,2,1,1,1,1,1,1,2,1,1,1,1,1,1,2,2,2,1,1,0] },
+  { name:"Bullzeye", id:922212, stats:116e9, minsPerDay:49.80, hours:[0,0,0,0,0,1,1,2,2,2,2,2,2,1,1,1,2,2,1,1,1,1,1,0] },
+  { name:"Todd", id:63384, stats:232e9, minsPerDay:35.05, hours:[1,2,2,1,1,2,2,2,1,0,0,0,0,0,1,1,1,1,1,1,1,1,2,2] },
+  { name:"DrGonzo", id:59922, stats:3.1e12, minsPerDay:8.74, hours:[1,0,0,1,0,0,0,0,0,0,0,0,1,1,1,0,1,1,1,1,1,0,0,0] },
+  { name:"Asgar", id:210613, stats:10e12, minsPerDay:4.39, hours:[0,0,0,0,0,0,1,2,1,2,1,2,2,2,1,1,0,1,2,2,1,1,1,0] },
+  { name:"realistassassin", id:1598729, stats:3.19e15, minsPerDay:39.30, hours:[2,1,1,1,0,0,0,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1] },
+  { name:"CaptBritain", id:1670630, stats:285e9, minsPerDay:268.0, hours:[0,0,0,0,0,1,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,1,0,0] },
+  { name:"Huzaifah", id:1407331, stats:17.3e9, minsPerDay:4.8, hours:[2,1,0,0,0,0,0,0,0,1,0,0,0,1,1,0,0,1,0,0,0,0,0,2] },
+];
+
+function tierOf(stats){
+  if(stats >= 1e12) return "extreme";
+  if(stats >= 100e9) return "high";
+  if(stats >= 30e9) return "mid";
+  return "low";
+}
+function tierLabel(t){ return {extreme:"Extreme",high:"High",mid:"Mid",low:"Low"}[t]; }
+
+function fmtStats(n){
+  if(n >= 1e15) return (n/1e15).toFixed(2)+"q";
+  if(n >= 1e12) return (n/1e12).toFixed(1)+"t";
+  if(n >= 1e9) return (n/1e9).toFixed(1)+"b";
+  return n.toString();
+}
+
+function avgActiveHours(hours){
+  // active hour = intensity >=1, but weight by intensity/5 to reflect "load"
+  const active = hours.filter(h=>h>0).length;
+  return active; // approx hrs/day active out of 24
+}
+
+function bestWindow(hours){
+  // find longest contiguous run of low intensity (<=1), prefer earliest among ties of max length
+  let bestStart=0, bestLen=0, curStart=0, curLen=0;
+  for(let i=0;i<24;i++){
+    if(hours[i] <= 1){
+      if(curLen===0) curStart=i;
+      curLen++;
+      if(curLen>bestLen){ bestLen=curLen; bestStart=curStart; }
+    } else { curLen=0; }
+  }
+  if(bestLen===0) return "—";
+  const end = (bestStart+bestLen)%24;
+  const pad = n => n.toString().padStart(2,'0');
+  return `${pad(bestStart)}:00–${pad(end)}:00`;
+}
+
+roster.forEach(r=>{
+  r.tier = tierOf(r.stats);
+  r.avgActive = avgActiveHours(r.hours);
+  r.bestWin = bestWindow(r.hours);
+  r.minsSort = r.minsPerDay === null ? -1 : r.minsPerDay; // unknowns sort last on desc
+});
+
+/* ===================== RENDER TABLE ===================== */
+const tbody = document.getElementById('rosterBody');
+let currentSort = {key:'stats', dir:-1};
+let currentSearch = '';
+
+function intensityColor(v){
+  const colors = ['var(--grid-cold)','var(--grid-hot1)','var(--grid-hot2)','var(--grid-hot3)','var(--grid-hot4)','var(--grid-hot5)'];
+  return colors[Math.min(v,5)];
+}
+
+function getSortedData(){
+  let data = roster.slice();
+  if(currentSearch){
+    data = data.filter(r => r.name.toLowerCase().includes(currentSearch.toLowerCase()));
+  }
+  data.sort((a,b)=>{
+    const k = currentSort.key;
+    let av = a[k], bv = b[k];
+    if(typeof av === 'string'){ av = av.toLowerCase(); bv = bv.toLowerCase(); }
+    if(av < bv) return -1 * currentSort.dir;
+    if(av > bv) return 1 * currentSort.dir;
+    return 0;
+  });
+  return data;
+}
+
+function renderTable(){
+  const data = getSortedData();
+  tbody.innerHTML = data.map(r=>{
+    const bars = r.hours.map(h=>`<div class="mini-seg" style="background:${intensityColor(h)}"></div>`).join('');
+    return `<tr>
+      <td><span class="td-name">${r.name}</span><span class="td-id">#${r.id}</span></td>
+      <td class="td-stats">${fmtStats(r.stats)}</td>
+      <td style="font-family:var(--mono); color:${r.minsPerDay===null ? 'var(--ink-dim)' : 'var(--ink-mid)'};">${r.minsPerDay===null ? '—' : r.minsPerDay.toFixed(1)+' min'}</td>
+      <td class="activity-bar-cell"><div class="mini-bar">${bars}</div></td>
+      <td class="window-tag">${r.bestWin}</td>
+    </tr>`;
+  }).join('');
+}
+
+document.querySelectorAll('#rosterTable thead th[data-key]').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.key;
+    if(currentSort.key === key){ currentSort.dir *= -1; }
+    else { currentSort = {key, dir: key==='name'||key==='bestWin' ? 1 : -1}; }
+    document.querySelectorAll('#rosterTable thead th[data-key]').forEach(t=>{t.classList.remove('sorted'); t.querySelector('.arrow').textContent='';});
+    th.classList.add('sorted');
+    th.querySelector('.arrow').textContent = currentSort.dir===1 ? '▲' : '▼';
+    renderTable();
+  });
+});
+
+document.getElementById('searchInput').addEventListener('input', e=>{
+  currentSearch = e.target.value;
+  renderTable();
+});
+
+/* ===================== RENDER HEATMAP (fixed: stats, highest first) ===================== */
+const hmGrid = document.getElementById('heatmapGrid');
+const tooltip = document.getElementById('tooltip');
+
+function renderHeatmap(){
+  const data = roster.slice().sort((a,b)=> b.stats - a.stats);
+
+  let hmHTML = `<div></div>`;
+  for(let h=0; h<24; h++){
+    hmHTML += `<div class="hm-hour-label">${h.toString().padStart(2,'0')}</div>`;
+  }
+
+  data.forEach(r=>{
+    hmHTML += `<div class="hm-row-label">${r.name}</div>`;
+    r.hours.forEach((v,h)=>{
+      hmHTML += `<div class="hm-cell" style="background:${intensityColor(v)}" data-name="${r.name}" data-hour="${h}" data-val="${v}"></div>`;
+    });
+  });
+
+  // divider + aggregate row
+  hmHTML += `<div class="hm-divider"></div>`;
+  const aggregate = [];
+  for(let h=0; h<24; h++){
+    let sum = 0;
+    roster.forEach(r=> sum += r.hours[h]);
+    aggregate.push(sum);
+  }
+  const maxAgg = Math.max(...aggregate);
+  hmHTML += `<div class="hm-row-label summary">ALL (sum)</div>`;
+  aggregate.forEach((v,h)=>{
+    const norm = Math.round((v/maxAgg)*5);
+    hmHTML += `<div class="hm-cell" style="background:${intensityColor(norm)}" data-name="ALL TARGETS" data-hour="${h}" data-val="${v} combined"></div>`;
+  });
+
+  hmGrid.innerHTML = hmHTML;
+
+  document.querySelectorAll('.hm-cell').forEach(cell=>{
+    cell.addEventListener('mousemove', e=>{
+      const name = cell.dataset.name;
+      const hour = cell.dataset.hour;
+      const val = cell.dataset.val;
+      tooltip.innerHTML = `<span class="t-name">${name}</span> · ${hour.padStart(2,'0')}:00 TCT<br>intensity: ${val}`;
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY + 14) + 'px';
+    });
+    cell.addEventListener('mouseleave', ()=>{ tooltip.style.display='none'; });
+  });
+}
+
+renderTable();
+renderHeatmap();
+</script>
+
+</body>
+</html>
